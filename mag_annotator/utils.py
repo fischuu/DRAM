@@ -153,7 +153,7 @@ def get_best_hits(query_db, target_db, logger, output_dir='.', query_prefix='que
     Returns a file location of a blast out format 6 file with search results
     """
     # make query to target db
-    tmp_dir = path.join(output_dir, 'tmp')
+    tmp_dir = path.join(output_dir, 'tmp2')
     query_target_db = path.join(output_dir, '%s_%s.mmsdb' % (query_prefix, target_prefix))
     run_process(['mmseqs', 'search', query_db, target_db, query_target_db, tmp_dir, '--threads', str(threads)],
                  logger, verbose=verbose)
