@@ -15,6 +15,8 @@ from skbio.metadata import IntervalMetadata
 from os import path, mkdir, stat
 from shutil import rmtree, copy2
 import pandas as pd
+import numpy as np
+
 
 from mag_annotator.utils import (
     run_process,
@@ -442,27 +444,45 @@ def get_unannotated(fasta_loc, annotations):
     ]
 
 
-def assign_grades(annotations):
-    """Grade genes based on reverse best hits to KEGG, UniRef and Pfam"""
-    grades = dict()
-    for gene, row in annotations.iterrows():
-        if row.get("kegg_RBH") is True:
-            rank = "A"
-        elif row.get("uniref_RBH") is True:
-            rank = "B"
-        elif not pd.isna(row.get("kegg_hit")) or not pd.isna(row.get("uniref_hit")):
-            rank = "C"
-        elif (
-            not pd.isna(row.get("pfam_hits"))
-            or not pd.isna(row.get("cazy_hits"))
-            or not pd.isna(row.get("peptidase_hit"))
-        ):
-            rank = "D"
-        else:
-            rank = "E"
-        grades[gene] = rank
-    return pd.DataFrame(grades, index=["rank"]).T
+#def assign_grades(annotations):
+#    """Grade genes based on reverse best hits to KEGG, UniRef and Pfam"""
+#    grades = dict()
+#    for gene, row in annotations.iterrows():
+#        if row.get("kegg_RBH") is True:
+#            rank = "A"
+#        elif row.get("uniref_RBH") is True:
+#            rank = "B"
+#        elif not pd.isna(row.get("kegg_hit")) or not pd.isna(row.get("uniref_hit")):
+#            rank = "C"
+#        elif (
+#            not pd.isna(row.get("pfam_hits"))
+#            or not pd.isna(row.get("cazy_hits"))
+#            or not pd.isna(row.get("peptidase_hit"))
+#        ):
+#            rank = "D"
+#        else:
+#            rank = "E"
+#        grades[gene] = rank
+#    return pd.DataFrame(grades, index=["rank"]).T
 
+# the step 'Merging ORFs' takes ages for large annotation files, so I hope this speeds up this step a little
+def assign_grades(annotations):
+    """Grade genes based on reverse best hits to KEGG, UniRef, and Pfam"""
+    
+    conditions = [
+        annotations["kegg_RBH"] == True,  # A
+        annotations["uniref_RBH"] == True,  # B
+        annotations["kegg_hit"].notna() | annotations["uniref_hit"].notna(),  # C
+        annotations["pfam_hits"].notna() | 
+        annotations["cazy_hits"].notna() | 
+        annotations["peptidase_hit"].notna(),  # D
+    ]
+    
+    choices = ["A", "B", "C", "D"]
+    
+    annotations["rank"] = np.select(conditions, choices, default="E")
+    
+    return annotations[["rank"]].rename_axis(index="gene")
 
 def generate_annotated_fasta(input_fasta, annotations, verbosity="short", name=None):
     """Generates fasta entries with added annotation information to the header of a fasta
